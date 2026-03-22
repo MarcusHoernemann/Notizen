@@ -1,13 +1,14 @@
 {
-  "name": "LCARS Terminal",
+  "name": "LCARS TERMINAL",
   "short_name": "LCARS",
+  "description": "Starfleet Knowledge Base",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#FF9900",
   "icons": [
     {
-      "src": "data:image/png;base64,HIER_DEINEN_KOMPLETTEN_BASE64_STRING_EINFÜGEN",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
