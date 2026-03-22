@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LCARS TERMINAL v0.1.26</title>
+    <title>LCARS TERMINAL v0.1.29</title>
     
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#FF9900">
@@ -23,14 +23,17 @@
         body { background-color: black; color: #FFFFCC; font-family: "Antonio", sans-serif; text-transform: uppercase; overflow: hidden; padding: 20px; }
         input, textarea, select { text-transform: none !important; outline: none; appearance: none; }
 
+        /* LCARS CORE GEOMETRY */
         .lcars-elbow { background: var(--lcars-orange); width: 180px; height: 100px; border-radius: 60px 0 0 0; position: relative; cursor: pointer; }
         .lcars-elbow::after { content: ""; position: absolute; bottom: 0; right: 0; width: calc(180px - var(--stave-width)); height: 60px; background: black; border-radius: 40px 0 0 0; }
         .lcars-v-stave { width: var(--stave-width); background: var(--lcars-orange); flex: 1; border-radius: 0 0 40px 40px; display: flex; flex-direction: column; gap: 10px; padding-top: 20px; }
         .lcars-h-bar { height: 40px; background: var(--lcars-orange); flex: 1; border-radius: 0 40px 40px 0; }
 
+        /* MODAL */
         #delete-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
         .modal-box { background: black; border: 4px solid var(--lcars-red); border-radius: 50px 0 50px 0; padding: 40px; width: 450px; }
 
+        /* NOTE LIST PILLS */
         .note-pill { min-width: 240px; height: 42px; border-radius: 21px; display: flex; align-items: center; cursor: pointer; transition: all 0.2s; overflow: hidden; background: #111; }
         .note-pill:hover { filter: brightness(1.4); }
         .note-pill.active-note { border: 2px solid white; scale: 1.05; background: #222; }
@@ -40,9 +43,25 @@
         .lcars-btn:active { filter: brightness(1.5); }
         
         textarea, .preview-area { background: transparent; color: white; font-family: 'Courier New', monospace; font-size: 18px; border: none; overflow-y: auto; }
+        
+        /* FORMATTING STYLES */
         .render-bold { font-weight: bold; color: var(--lcars-gold); }
         .render-code { background: #222; color: #00FF00; padding: 2px 6px; border-radius: 4px; font-family: monospace; border: 1px solid #444; }
-        .task-item { display: flex; align-items: center; gap: 15px; margin-bottom: 8px; cursor: pointer; font-family: sans-serif; text-transform: none; }
+
+        /* CHECKBOX OPTIK */
+        .task-item { display: flex; align-items: center; gap: 15px; margin-bottom: 12px; cursor: pointer; }
+        .lcars-checkbox { 
+            width: 22px; height: 22px; border: 2px solid var(--lcars-gold); 
+            border-radius: 50%; position: relative; flex-shrink: 0; transition: all 0.2s;
+        }
+        .task-checked .lcars-checkbox { background: var(--lcars-blue); border-color: var(--lcars-blue); }
+        .task-checked .lcars-checkbox::after {
+            content: "✓"; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -55%);
+            color: black; font-weight: bold; font-size: 14px;
+        }
+        .task-text { font-family: sans-serif; text-transform: none; font-size: 18px; }
+        /* HELLERES GRAU FÜR ABGEHAKTE TEXTE */
+        .task-checked .task-text { color: #888; text-decoration: line-through; }
         
         .lcars-select-wrapper { background: black; border: 2px solid var(--lcars-gold); border-radius: 30px; padding: 0 16px; height: 32px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
         select { background: black; color: var(--lcars-gold); font-weight: bold; border: none; font-size: 13px; cursor: pointer; }
@@ -68,7 +87,7 @@
         <div class="lcars-elbow" onclick="clearDisplay()"></div>
         <div class="flex flex-col flex-1 gap-3">
             <div class="lcars-h-bar flex items-center px-10 justify-between">
-                <span class="text-white font-black text-2xl italic tracking-tighter uppercase">Data Archive // V 0.1.26</span>
+                <span class="text-white font-black text-2xl italic tracking-tighter uppercase font-bold">Data Archive // V 0.1.29</span>
                 <span id="stardate" class="text-black font-bold text-xs uppercase"></span>
             </div>
             <div class="flex gap-2">
@@ -121,7 +140,7 @@
                     <input type="text" id="note-tags" oninput="saveCurrentNote()" placeholder="Tags..." class="flex-1 bg-black rounded-full px-4 py-0.5 text-xs text-[var(--lcars-blue)] font-mono">
                 </div>
                 <div class="flex-1 relative bg-[#050505] rounded-tr-[60px] border-l-[30px] border-[var(--lcars-violet)] p-10 overflow-hidden flex flex-col shadow-inner">
-                    <textarea id="note-content" oninput="saveCurrentNote()" class="hidden w-full h-full resize-none leading-relaxed" placeholder="Content..."></textarea>
+                    <textarea id="note-content" oninput="saveCurrentNote()" class="hidden w-full h-full resize-none leading-relaxed" placeholder="**Bold**, `Code`, [ ] Todo..."></textarea>
                     <div id="note-preview" class="w-full h-full preview-area"></div>
                 </div>
             </main>
@@ -129,9 +148,10 @@
     </div>
 
     <script>
-        // PWA SERVICE WORKER REGISTRATION
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('sw.js').then(() => console.log("LCARS SW Active"));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(reg => console.log("SW Registered")).catch(err => console.log("SW Failed"));
+            });
         }
 
         let notes = JSON.parse(localStorage.getItem('lcars_kb_v1')) || [];
@@ -222,17 +242,26 @@
 
         function renderPreview() {
             const text = document.getElementById('note-content').value;
-            const rendered = text.split('\n').map((line, index) => {
+            const lines = text.split('\n').map((line, index) => {
                 let l = line.trim();
+                
                 if (l.startsWith('[ ]') || l.startsWith('[x]')) {
                     const checked = l.startsWith('[x]');
-                    return `<div class="task-item" onclick="toggleTask(${index})"><input type="checkbox" ${checked ? 'checked' : ''}><span class="${checked ? 'opacity-30 line-through' : ''}">${l.substring(3).trim()}</span></div>`;
+                    return `<div class="task-item ${checked ? 'task-checked' : ''}" onclick="toggleTask(${index})">
+                                <div class="lcars-checkbox"></div>
+                                <span class="task-text">${applyFormat(l.substring(3).trim())}</span>
+                            </div>`;
                 }
-                let html = line.replace(/\*\*(.*?)\*\*/g, '<span class="render-bold">$1</span>');
-                html = html.replace(/`(.*?)`/g, '<span class="render-code">$1</span>');
-                return `<p class="mb-2 min-h-[1.2em]" style="text-transform:none;">${html || '&nbsp;'}</p>`;
+                
+                return `<p class="mb-2 min-h-[1.2em] text-transform-none" style="text-transform:none;">${applyFormat(line) || '&nbsp;'}</p>`;
             }).join('');
-            document.getElementById('note-preview').innerHTML = rendered;
+            document.getElementById('note-preview').innerHTML = lines;
+        }
+
+        function applyFormat(str) {
+            let formatted = str.replace(/\*\*(.*?)\*\*/g, '<span class="render-bold">$1</span>');
+            formatted = formatted.replace(/`(.*?)`/g, '<span class="render-code">$1</span>');
+            return formatted;
         }
 
         function toggleTask(idx) {
