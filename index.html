@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LCARS TERMINAL v0.1.37</title>
+    <title>LCARS TERMINAL v0.1.38</title>
     
     <meta name="theme-color" content="#FF9900">
     <meta name="mobile-web-app-capable" content="yes">
@@ -84,7 +84,7 @@
         <div class="lcars-elbow" onclick="clearDisplay()"></div>
         <div class="flex flex-col flex-1 gap-3">
             <div class="lcars-h-bar flex items-center px-10 justify-between">
-                <span class="text-white font-black text-2xl italic tracking-tighter uppercase font-bold">Data Archive // V 0.1.37</span>
+                <span class="text-white font-black text-2xl italic tracking-tighter uppercase font-bold">Data Archive // V 0.1.38</span>
                 <span id="stardate" class="text-black font-bold text-xs uppercase"></span>
             </div>
             <div class="flex gap-2">
@@ -145,12 +145,20 @@
     </div>
 
     <script>
-        // Verbesserte SW-Registrierung für GitHub Pages
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                const swPath = './sw.js';
-                navigator.serviceWorker.register(swPath, { scope: './' })
-                    .then(reg => console.log("LCARS SW Active", reg.scope))
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => {
+                        console.log("Service Worker registered");
+                        reg.onupdatefound = () => {
+                            const installingWorker = reg.installing;
+                            installingWorker.onstatechange = () => {
+                                if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    console.log("New version available, please refresh.");
+                                }
+                            };
+                        };
+                    })
                     .catch(err => console.log("SW Error", err));
             });
         }
