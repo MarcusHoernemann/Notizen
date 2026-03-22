@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LCARS TERMINAL v0.1.26</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#FF9900">
+    <link rel="apple-touch-icon" href="logo.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --lcars-orange: #FF9900;
+            --lcars-violet: #CC99CC;
+            --lcars-blue: #3399FF;
+            --lcars-gold: #FFCC33;
+            --lcars-red: #CC0000;
+            --stave-width: 80px;
+        }
+
+        body { background-color: black; color: #FFFFCC; font-family: "Antonio", sans-serif; text-transform: uppercase; overflow: hidden; padding: 20px; }
+        input, textarea, select { text-transform: none !important; outline: none; appearance: none; }
+
+        .lcars-elbow { background: var(--lcars-orange); width: 180px; height: 100px; border-radius: 60px 0 0 0; position: relative; cursor: pointer; }
+        .lcars-elbow::after { content: ""; position: absolute; bottom: 0; right: 0; width: calc(180px - var(--stave-width)); height: 60px; background: black; border-radius: 40px 0 0 0; }
+        .lcars-v-stave { width: var(--stave-width); background: var(--lcars-orange); flex: 1; border-radius: 0 0 40px 40px; display: flex; flex-direction: column; gap: 10px; padding-top: 20px; }
+        .lcars-h-bar { height: 40px; background: var(--lcars-orange); flex: 1; border-radius: 0 40px 40px 0; }
+
+        #delete-modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-box { background: black; border: 4px solid var(--lcars-red); border-radius: 50px 0 50px 0; padding: 40px; width: 450px; }
+
+        .note-pill { min-width: 240px; height: 42px; border-radius: 21px; display: flex; align-items: center; cursor: pointer; transition: all 0.2s; overflow: hidden; background: #111; }
+        .note-pill:hover { filter: brightness(1.4); }
+        .note-pill.active-note { border: 2px solid white; scale: 1.05; background: #222; }
+        
+        .prio-block { width: 50px; height: 100%; display: flex; align-items: center; justify-content: center; color: black; font-weight: 900; font-size: 16px; flex-shrink: 0; }
+        .lcars-btn { transition: filter 0.1s; cursor: pointer; font-weight: bold; border-radius: 30px; text-align: center; }
+        .lcars-btn:active { filter: brightness(1.5); }
+        
+        textarea, .preview-area { background: transparent; color: white; font-family: 'Courier New', monospace; font-size: 18px; border: none; overflow-y: auto; }
+        .render-bold { font-weight: bold; color: var(--lcars-gold); }
+        .render-code { background: #222; color: #00FF00; padding: 2px 6px; border-radius: 4px; font-family: monospace; border: 1px solid #444; }
+        .task-item { display: flex; align-items: center; gap: 15px; margin-bottom: 8px; cursor: pointer; font-family: sans-serif; text-transform: none; }
+        
+        .lcars-select-wrapper { background: black; border: 2px solid var(--lcars-gold); border-radius: 30px; padding: 0 16px; height: 32px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+        select { background: black; color: var(--lcars-gold); font-weight: bold; border: none; font-size: 13px; cursor: pointer; }
+        
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="h-screen flex flex-col gap-2">
+
+    <div id="delete-modal">
+        <div class="modal-box text-center shadow-[0_0_50px_rgba(204,0,0,0.5)]">
+            <h2 class="text-3xl font-black text-[var(--lcars-red)] mb-6 uppercase tracking-tighter">Sicherheits-Warnung</h2>
+            <div class="flex gap-4 justify-center">
+                <button onclick="confirmDelete()" class="lcars-btn bg-[var(--lcars-red)] text-black px-10 py-3 text-xs uppercase font-black">Löschen</button>
+                <button onclick="closeModal()" class="lcars-btn bg-[var(--lcars-blue)] text-black px-10 py-3 text-xs uppercase font-black">Abbruch</button>
+            </div>
+        </div>
+    </div>
+
+    <header class="flex items-start gap-3 h-24">
+        <div class="lcars-elbow" onclick="clearDisplay()"></div>
+        <div class="flex flex-col flex-1 gap-3">
+            <div class="lcars-h-bar flex items-center px-10 justify-between">
+                <span class="text-white font-black text-2xl italic tracking-tighter uppercase">Data Archive // V 0.1.26</span>
+                <span id="stardate" class="text-black font-bold text-xs uppercase"></span>
+            </div>
+            <div class="flex gap-2">
+                <div class="w-24 bg-[#CC99CC] rounded-l-full h-10 flex items-center justify-center text-black font-bold text-[10px] uppercase">Search</div>
+                <div class="flex-1 bg-[var(--lcars-blue)] rounded-full p-1 flex h-10">
+                    <input type="text" id="search" oninput="renderNoteList()" placeholder="SEARCH..." class="flex-1 bg-black rounded-full px-6 text-sm text-[var(--lcars-blue)] font-bold">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 gap-4 overflow-hidden mt-2">
+        <aside class="flex flex-col gap-3">
+            <div class="lcars-v-stave">
+                <div class="px-2 flex flex-col gap-2">
+                    <button onclick="createNewNote()" class="lcars-btn w-full bg-black text-[#CC99CC] py-1.5 border-2 border-[#CC99CC] text-[10px] uppercase">New [+]</button>
+                    <div class="h-4"></div>
+                    <button onclick="exportData()" class="lcars-btn w-full bg-[#3399FF] text-black py-1 text-[9px] uppercase">Export</button>
+                    <label class="lcars-btn w-full bg-[#FFCC33] text-black py-1 text-[9px] cursor-pointer uppercase">
+                        Import <input type="file" id="importFile" class="hidden" onchange="importData(event)">
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col gap-4">
+            <nav id="note-list" class="h-16 overflow-x-auto flex items-center gap-3 px-2"></nav>
+            <div id="idle-screen" class="flex-1 border-2 border-[#111] rounded-[40px] flex items-center justify-center italic text-[#222] text-2xl uppercase tracking-widest">System Ready</div>
+            
+            <div id="editor-container" class="hidden flex-1 flex flex-col gap-3">
+                <div class="flex flex-col border-b-4 border-[var(--lcars-gold)] pb-2 gap-1">
+                    <div class="flex gap-4 items-center">
+                        <input type="text" id="note-title" oninput="saveCurrentNote()" class="text-4xl font-black bg-transparent flex-1 text-white" placeholder="TITLE...">
+                        <div class="lcars-select-wrapper">
+                            <span class="text-[10px] text-[var(--lcars-gold)] font-black uppercase">Level:</span>
+                            <select id="note-level" onchange="saveCurrentNote()">
+                                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="toggle-btn" onclick="toggleMode()" class="lcars-btn bg-[var(--lcars-gold)] text-black px-4 py-1 text-[10px] uppercase">Mission Mode</button>
+                            <button onclick="clearDisplay()" class="lcars-btn bg-[var(--lcars-violet)] text-black px-4 py-1 text-[10px] uppercase">Close</button>
+                            <button onclick="openModal()" class="lcars-btn bg-[var(--lcars-red)] text-black px-4 py-1 text-[10px] uppercase">Delete</button>
+                        </div>
+                    </div>
+                    <div id="note-date-info" class="text-[10px] text-white font-bold px-1 tracking-widest"></div>
+                </div>
+                <div class="flex items-center bg-[var(--lcars-blue)] rounded-full p-1 w-full lg:w-1/2">
+                    <div class="px-4 text-black font-black text-[10px] uppercase">Tags:</div>
+                    <input type="text" id="note-tags" oninput="saveCurrentNote()" placeholder="Tags..." class="flex-1 bg-black rounded-full px-4 py-0.5 text-xs text-[var(--lcars-blue)] font-mono">
+                </div>
+                <div class="flex-1 relative bg-[#050505] rounded-tr-[60px] border-l-[30px] border-[var(--lcars-violet)] p-10 overflow-hidden flex flex-col shadow-inner">
+                    <textarea id="note-content" oninput="saveCurrentNote()" class="hidden w-full h-full resize-none leading-relaxed" placeholder="Content..."></textarea>
+                    <div id="note-preview" class="w-full h-full preview-area"></div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        // PWA SERVICE WORKER REGISTRATION
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').then(() => console.log("LCARS SW Active"));
+        }
+
+        let notes = JSON.parse(localStorage.getItem('lcars_kb_v1')) || [];
+        let activeNoteId = null;
+        let isEditMode = false;
+        const levelColors = { 1: '#3399FF', 2: '#CC99CC', 3: '#FFCC33', 4: '#FF9900', 5: '#CC0000' };
+
+        function updateStardate() {
+            const now = new Date();
+            const start = new Date(now.getFullYear(), 0, 0);
+            const diff = now - start;
+            const day = Math.floor(diff / (1000 * 60 * 60 * 24));
+            document.getElementById('stardate').innerText = `STARDATE ${now.getFullYear().toString().slice(-2)}${day}.${now.getHours()}${now.getMinutes()}`;
+        }
+        setInterval(updateStardate, 1000);
+
+        function formatDate(timestamp) {
+            if(!timestamp) return "--.--.--";
+            const d = new Date(timestamp);
+            return `${d.getDate().toString().padStart(2, '0')}.${(d.getMonth()+1).toString().padStart(2, '0')}.${d.getFullYear().toString().slice(-2)}`;
+        }
+
+        function getTagColor(note) {
+            const pool = ((note.title || "") + " " + (note.content || "") + " " + (note.tags || "")).toLowerCase();
+            if (pool.includes('firma')) return '#3399FF';
+            if (pool.includes('privat')) return '#CC99CC';
+            if (pool.includes('computer')) return '#FFCC33';
+            if (pool.includes('reise')) return '#FF9900';
+            return '#444';
+        }
+
+        function clearDisplay() { activeNoteId = null; document.getElementById('editor-container').classList.add('hidden'); document.getElementById('idle-screen').classList.remove('hidden'); renderNoteList(); }
+        function openModal() { document.getElementById('delete-modal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('delete-modal').style.display = 'none'; }
+        
+        function confirmDelete() {
+            notes = notes.filter(n => n.id !== activeNoteId);
+            localStorage.setItem('lcars_kb_v1', JSON.stringify(notes));
+            closeModal(); clearDisplay();
+        }
+
+        function createNewNote() {
+            const now = Date.now();
+            const newNote = { id: now.toString(), title: "", tags: "", content: "", level: 1, created: now, updated: now };
+            notes.unshift(newNote);
+            selectNote(newNote.id, true);
+        }
+
+        function saveCurrentNote() {
+            if (!activeNoteId) return;
+            const note = notes.find(n => n.id === activeNoteId);
+            note.title = document.getElementById('note-title').value;
+            note.tags = document.getElementById('note-tags').value;
+            note.content = document.getElementById('note-content').value;
+            note.level = document.getElementById('note-level').value;
+            note.updated = Date.now();
+            localStorage.setItem('lcars_kb_v1', JSON.stringify(notes));
+            updateDateDisplay(note);
+            renderNoteList();
+        }
+
+        function updateDateDisplay(note) {
+            const info = document.getElementById('note-date-info');
+            info.innerText = `LOG ENTRY: ${formatDate(note.created)} // UPDATE: ${formatDate(note.updated)}`;
+        }
+
+        function selectNote(id, forceEdit = false) {
+            activeNoteId = id; isEditMode = forceEdit;
+            document.getElementById('editor-container').classList.remove('hidden');
+            document.getElementById('idle-screen').classList.add('hidden');
+            const note = notes.find(n => n.id === id);
+            document.getElementById('note-title').value = note.title;
+            document.getElementById('note-tags').value = note.tags;
+            document.getElementById('note-content').value = note.content;
+            document.getElementById('note-level').value = note.level || 1;
+            updateDateDisplay(note);
+            updateModeUI(); renderNoteList();
+        }
+
+        function toggleMode() { isEditMode = !isEditMode; updateModeUI(); }
+        function updateModeUI() {
+            const content = document.getElementById('note-content');
+            const preview = document.getElementById('note-preview');
+            const btn = document.getElementById('toggle-btn');
+            if (isEditMode) { btn.innerText = "MISSION MODE"; content.classList.remove('hidden'); preview.classList.add('hidden'); } 
+            else { btn.innerText = "EDIT"; content.classList.add('hidden'); preview.classList.remove('hidden'); renderPreview(); }
+        }
+
+        function renderPreview() {
+            const text = document.getElementById('note-content').value;
+            const rendered = text.split('\n').map((line, index) => {
+                let l = line.trim();
+                if (l.startsWith('[ ]') || l.startsWith('[x]')) {
+                    const checked = l.startsWith('[x]');
+                    return `<div class="task-item" onclick="toggleTask(${index})"><input type="checkbox" ${checked ? 'checked' : ''}><span class="${checked ? 'opacity-30 line-through' : ''}">${l.substring(3).trim()}</span></div>`;
+                }
+                let html = line.replace(/\*\*(.*?)\*\*/g, '<span class="render-bold">$1</span>');
+                html = html.replace(/`(.*?)`/g, '<span class="render-code">$1</span>');
+                return `<p class="mb-2 min-h-[1.2em]" style="text-transform:none;">${html || '&nbsp;'}</p>`;
+            }).join('');
+            document.getElementById('note-preview').innerHTML = rendered;
+        }
+
+        function toggleTask(idx) {
+            const note = notes.find(n => n.id === activeNoteId);
+            const lines = note.content.split('\n');
+            lines[idx] = lines[idx].includes('[ ]') ? lines[idx].replace('[ ]', '[x]') : lines[idx].replace('[x]', '[ ]');
+            note.content = lines.join('\n');
+            document.getElementById('note-content').value = note.content;
+            saveCurrentNote(); renderPreview();
+        }
+
+        function renderNoteList() {
+            const list = document.getElementById('note-list');
+            const search = document.getElementById('search').value.toLowerCase();
+            list.innerHTML = '';
+            const filtered = notes.filter(n => (n.title+n.content+n.tags).toLowerCase().includes(search));
+            filtered.sort((a,b) => (b.updated || 0) - (a.updated || 0));
+
+            filtered.forEach(n => {
+                const tagColor = getTagColor(n);
+                const prioColor = levelColors[n.level || 1];
+                const div = document.createElement('div');
+                div.className = `note-pill ${n.id === activeNoteId ? 'active-note' : ''}`;
+                div.onclick = () => selectNote(n.id);
+                div.innerHTML = `
+                    <div class="prio-block" style="background-color: ${prioColor}">${n.level || 1}</div>
+                    <div class="flex flex-col flex-1 px-4 overflow-hidden">
+                        <span class="font-black text-[11px] truncate" style="color: ${tagColor}">${n.title || 'EMPTY LOG'}</span>
+                        <span class="text-[9px] text-[#CCC] font-bold">${formatDate(n.updated)}</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function exportData() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(notes));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `lcars_archive_${Date.now()}.json`);
+            dlAnchor.click();
+        }
+
+        function importData(event) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                notes = JSON.parse(e.target.result);
+                localStorage.setItem('lcars_kb_v1', JSON.stringify(notes));
+                renderNoteList();
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+
+        updateStardate(); renderNoteList();
+    </script>
+</body>
+</html>
