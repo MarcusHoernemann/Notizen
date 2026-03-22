@@ -1,35 +1,28 @@
-const CACHE_NAME = 'lcars-kb-v0.1.25';
+const CACHE_NAME = 'lcars-kb-v0.1.27'; // Version erhöht!
 const ASSETS = [
+  './',
   'index.html',
   'manifest.json',
   'logo.png'
 ];
 
-// Installation: Cache befüllen
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // Erzwingt die sofortige Übernahme
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS);
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
 });
 
-// Aktivierung: Alte Caches löschen
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
-      );
-    })
+    caches.keys().then((keys) => Promise.all(
+      keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
+    ))
   );
 });
 
-// Strategie: Cache zuerst, dann Netzwerk
 self.addEventListener('fetch', (event) => {
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
-    })
+    caches.match(event.request).then((response) => response || fetch(event.request))
   );
 });
