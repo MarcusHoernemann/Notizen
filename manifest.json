@@ -1,21 +1,19 @@
 {
-  "name": "LCARS TERMINAL v0.1.33",
+  "name": "LCARS Terminal",
   "short_name": "LCARS",
-  "description": "LCARS Knowledge Base Terminal",
   "start_url": "./index.html",
   "display": "standalone",
-  "orientation": "any",
   "background_color": "#000000",
   "theme_color": "#FF9900",
   "icons": [
     {
-      "src": "logo.png",
+      "src": "./logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "logo.png",
+      "src": "./logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
