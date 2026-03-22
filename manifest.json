@@ -1,5 +1,5 @@
 {
-  "name": "LCARS Terminal",
+  "name": "LCARS TERMINAL",
   "short_name": "LCARS",
   "start_url": "index.html",
   "display": "standalone",
@@ -7,7 +7,7 @@
   "theme_color": "#FF9900",
   "icons": [
     {
-      "src": "icon.png?v=42",
+      "src": "icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
